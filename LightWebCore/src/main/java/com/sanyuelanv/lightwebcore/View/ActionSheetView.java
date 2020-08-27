@@ -1,28 +1,24 @@
 package com.sanyuelanv.lightwebcore.View;
 
-import android.animation.AnimatorSet;
+import android.animation.ArgbEvaluator;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.StateListDrawable;
-import android.os.Build;
 import android.text.TextUtils;
-import android.util.AttributeSet;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowInsets;
 import android.view.animation.Animation;
 import android.view.animation.TranslateAnimation;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
-
-import com.sanyuelanv.lightwebcore.Fragments.MyActionSheet;
 import com.sanyuelanv.lightwebcore.Helper.UIHelper;
 import com.sanyuelanv.lightwebcore.Model.Enum.ThemeConfig;
 import com.sanyuelanv.lightwebcore.Model.Enum.ThemeTypes;
@@ -30,11 +26,15 @@ import com.sanyuelanv.lightwebcore.Model.Enum.ThemeTypes;
 /**
  * Create By songhang in 8/26/20
  */
-public class ActionSheetView extends LinearLayout implements  View.OnClickListener {
+public class ActionSheetView extends LinearLayout implements  View.OnClickListener,View.OnTouchListener {
     public interface OnControlBtnListener {
         void changeDevItem();
         void reloadItem();
+        void closeItem();
     }
+    private static String devItemTitle = "打开调试台";
+    private static String reloadItemTitle = "重新下载";
+    private static String cancelItemTitle = "取消";
     protected OnControlBtnListener listener;
     private Context mContext;
     private boolean isDev;
@@ -43,6 +43,7 @@ public class ActionSheetView extends LinearLayout implements  View.OnClickListen
     private LinearLayout linearLayout;
     private int contentHeight;
     private  boolean isInit = false;
+    protected float downX, downY,moveY,moveX;
 
     public void setListener(ActionSheetView.OnControlBtnListener listener) {
         this.listener = listener;
@@ -109,7 +110,7 @@ public class ActionSheetView extends LinearLayout implements  View.OnClickListen
                     textView.setTextColor(itemTextColor);
                     if(tag == 1) textView.setBackground(createStateDrawable(itemBgColor,itemBgPressColor,radii));
                     else {
-                        if (isDev) textView.setBackground(createStateDrawable(itemBgColor,itemBgPressColor,radii));
+                        if (!isDev) textView.setBackground(createStateDrawable(itemBgColor,itemBgPressColor,radii));
                         else textView.setBackground(createStateDrawable(itemBgColor,itemBgPressColor,radiiNone));
                     }
                     break;
@@ -124,7 +125,12 @@ public class ActionSheetView extends LinearLayout implements  View.OnClickListen
         setOrientation(LinearLayout.VERTICAL);
         setGravity(Gravity.BOTTOM);
         setClickable(true);
-//        setBackgroundColor(Color.argb(125,0,0,0));
+        LinearLayout topView = new LinearLayout(context);
+        topView.setTag(-2);
+        LinearLayout.LayoutParams topViewParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1);
+        addView(topView,topViewParams);
+        topView.setOnClickListener(this);
+        topView.setOnTouchListener(this);
 
         linearLayout = new LinearLayout(context);
         LinearLayout.LayoutParams mainBoxParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -132,12 +138,12 @@ public class ActionSheetView extends LinearLayout implements  View.OnClickListen
         linearLayout.setGravity(Gravity.BOTTOM);
         addView(linearLayout,mainBoxParams);
         if(isDev){
-            createTextView(1,"打开调试台");
+            createTextView(1,devItemTitle);
             addLineInView(UIHelper.dp2px(context,1) );
         }
-        createTextView(0,"重新下载");
+        createTextView(0,reloadItemTitle);
         addLineInView(UIHelper.dp2px(context,8) );
-        createTextView(-1,"取消");
+        createTextView(-1,cancelItemTitle);
 
         if(UIHelper.isEdgeToEdgeEnabled(mContext) == 2){
             int bottom = UIHelper.getRealHeight(mContext) - UIHelper.getScreenHeight(mContext);
@@ -146,20 +152,36 @@ public class ActionSheetView extends LinearLayout implements  View.OnClickListen
         changStyle(this.nowTheme);
         // 展示动画
         Log.d("contentHeight",contentHeight+"");
-
         showView();
-
-
         isInit = true;
     };
     public void showView(){
         // 背景色渐变
+        ValueAnimator animator = ObjectAnimator.ofInt(this, "backgroundColor", 0x000f0000, 0x8C000000);
+        animator.setDuration(150);
+        animator.setEvaluator(new ArgbEvaluator());
+        animator.start();
         // 底部上升
         Animation translateAnimation = new TranslateAnimation(0, 0, contentHeight, 0);//设置平移的起点和终点
         translateAnimation.setFillEnabled(true);//使其可以填充效果从而不回到原地
         translateAnimation.setFillAfter(true);//不回到起始位置
         translateAnimation.setDuration(250);  //设置动画时间
         linearLayout.setAnimation(translateAnimation);
+        translateAnimation.start(); //启动
+    }
+    public void hideView(Animation.AnimationListener listener){
+        // 背景色渐变
+        ValueAnimator animator = ObjectAnimator.ofInt(this, "backgroundColor", 0x8C000000,0x000f0000);
+        animator.setDuration(250);
+        animator.setEvaluator(new ArgbEvaluator());
+        animator.start();
+        // 底部下降
+        Animation translateAnimation = new TranslateAnimation(0, 0, 0, contentHeight);//设置平移的起点和终点
+        translateAnimation.setFillEnabled(true);//使其可以填充效果从而不回到原地
+        translateAnimation.setFillAfter(true);//不回到起始位置
+        translateAnimation.setDuration(250);  //设置动画时间
+        linearLayout.setAnimation(translateAnimation);
+        translateAnimation.setAnimationListener(listener);
         translateAnimation.start(); //启动
     }
     private void createTextView(int tag, String text){
@@ -179,6 +201,7 @@ public class ActionSheetView extends LinearLayout implements  View.OnClickListen
         LinearLayout.LayoutParams titleViewParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,h);
         linearLayout.addView(textView,titleViewParams);
         textView.setOnClickListener(this);
+        textView.setOnTouchListener(this);
     }
     private void addLineInView(int height){
         contentHeight += height;
@@ -203,5 +226,32 @@ public class ActionSheetView extends LinearLayout implements  View.OnClickListen
         int index = (int)v.getTag();
         if (index == 0){  if(listener != null) listener.reloadItem(); }
         else if (index == 1){  if(listener != null) listener.changeDevItem(); }
+        else{  if(listener != null) listener.closeItem(); }
     }
+
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                downX = event.getX();
+                downY = event.getY();
+                moveX = 0;
+                moveY = 0;
+                break;
+            case MotionEvent.ACTION_MOVE:
+                moveX += Math.abs(event.getX() - downX);
+                moveY += Math.abs(event.getY() - downY);
+                downX = event.getX();
+                downY = event.getY();
+                break;
+            case MotionEvent.ACTION_UP:
+                //判断是否继续传递信号
+                if(moveX>20||moveY>20){
+                    return true;
+                }
+                break;
+        }
+        return false;//继续执行后面的代码:点击
+    }
+
 }

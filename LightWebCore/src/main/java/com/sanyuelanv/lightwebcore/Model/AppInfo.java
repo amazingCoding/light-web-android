@@ -3,7 +3,11 @@ package com.sanyuelanv.lightwebcore.Model;
 import android.content.Context;
 import android.os.Build;
 
+import com.sanyuelanv.lightwebcore.Helper.JsonHelper;
 import com.sanyuelanv.lightwebcore.Helper.UIHelper;
+import com.sanyuelanv.lightwebcore.Model.Enum.ThemeTypes;
+
+import org.json.JSONObject;
 
 /**
  * Create By songhang in 2020/8/20
@@ -59,45 +63,45 @@ public class AppInfo {
         int webHeight = UIHelper.getScreenContentHeight(mContext) - navBarHeight;
         this.webHeight = UIHelper.px2dp(mContext,webHeight);
     }
-    public String toPageString(){
-        return "{" +
-                "data:{" +
-                    "webWidth:" + webWidth + "," +
-                    "webHeight:" + webHeight + "," +
-                    "currentTheme:"+ currentTheme +
-                "}," +
-                "state:0" +
-                "}";
+    public JSONObject getPageResult(){
+        JSONObject data = new JSONObject();
+        JsonHelper.setValueToJson(data,"webWidth",webWidth);
+        JsonHelper.setValueToJson(data,"webHeight",webHeight);
+        JsonHelper.setValueToJson(data,"currentTheme",currentTheme);
+        return data;
     }
-    public String toString(String extra) {
-        String myExtra = extra == null ?  "null" : "'" +extra+"'";
-        return "{" +
-                    "data:{" +
-                        "appInfo:{" +
-                        "phoneName:'" + phoneName + "'," +
-                        "system:'" + system + "'," +
-                        "systemVersion:'" + system + "'," +
-                        "screenWidth:" + screenWidth + "," +
-                        "screenHeight:" + screenHeight + "," +
-                        "webWidth:" + webWidth + "," +
-                        "webHeight:" + webHeight + "," +
-                        "statusBarHeight:" + statusBarHeight + "," +
-                        "capsule:{"+
-                        "width:" + capsuleWidth + "," +
-                        "height:" + capsuleHeight + "," +
-                        "x:" + capsuleX + "," +
-                        "y:" + capsuleY + "," +
-                        "},"+
-                        "},"+
-                        "routerInfo:{"+
-                        "maxRouters:" + maxRouters + "," +
-                        "currentPos:" + currentPos + "," +
-                        "},"+
-                        "extra:" + myExtra + ","+
-                        "currentTheme:"+ currentTheme +
-                    "}," +
-                    "state:0" +
-                "}";
+    public JSONObject getResult(String extra) {
+        JSONObject data = new JSONObject();
+        JSONObject appInfo = new JSONObject();
+        JSONObject routerInfo = new JSONObject();
+        JSONObject capsule = new JSONObject();
+
+//        String myExtra = extra == null ?  "null" : "'" +extra+"'";
+
+        JsonHelper.setValueToJson(capsule,"x",capsuleX);
+        JsonHelper.setValueToJson(capsule,"y",capsuleY);
+        JsonHelper.setValueToJson(capsule,"width",capsuleWidth);
+        JsonHelper.setValueToJson(capsule,"height",capsuleHeight);
+
+        JsonHelper.setValueToJson(appInfo,"phoneName",phoneName);
+        JsonHelper.setValueToJson(appInfo,"system",system);
+        JsonHelper.setValueToJson(appInfo,"systemVersion",systemVersion);
+        JsonHelper.setValueToJson(appInfo,"screenWidth",screenWidth);
+        JsonHelper.setValueToJson(appInfo,"screenHeight",screenHeight);
+        JsonHelper.setValueToJson(appInfo,"webWidth",webWidth);
+        JsonHelper.setValueToJson(appInfo,"webHeight",webHeight);
+        JsonHelper.setValueToJson(appInfo,"statusBarHeight",statusBarHeight);
+        JsonHelper.setValueToJson(appInfo,"capsule",capsule);
+
+        JsonHelper.setValueToJson(routerInfo,"maxRouters",maxRouters);
+        JsonHelper.setValueToJson(routerInfo,"currentPos",currentPos);
+
+        JsonHelper.setValueToJson(data,"appInfo",appInfo);
+        JsonHelper.setValueToJson(data,"routerInfo",routerInfo);
+        JsonHelper.setValueToJson(data,"extra",extra);
+        JsonHelper.setValueToJson(data,"currentTheme",currentTheme);
+
+        return data;
     }
 
     private String getDeviceName() {
@@ -231,5 +235,13 @@ public class AppInfo {
 
     public void setCurrentPos(int currentPos) {
         this.currentPos = currentPos;
+    }
+
+    public ThemeTypes getCurrentTheme() {
+        return ThemeTypes.compare(currentTheme);
+    }
+
+    public void setCurrentTheme(ThemeTypes currentTheme) {
+        this.currentTheme = currentTheme == ThemeTypes.light ? 0 : 1;
     }
 }

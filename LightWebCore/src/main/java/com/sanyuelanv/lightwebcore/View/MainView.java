@@ -163,4 +163,5 @@ public class MainView extends RelativeLayout {
     public int getNavBarHeight() {
         return navBarHeight;
     }
+
 }

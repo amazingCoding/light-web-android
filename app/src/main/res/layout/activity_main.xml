@@ -3,20 +3,19 @@
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:orientation="vertical"
     xmlns:android="http://schemas.android.com/apk/res/android">
+    <Switch
+        android:text="开发模式："
+        android:checked="true"
+        android:id="@+id/changeDev"
+        android:layout_margin="20dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+
+    </Switch>
     <Button
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:id="@+id/goWeb"
-        android:layout_margin="20dp"
-        android:text="goWeb"></Button>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"></LinearLayout>
-    <Button
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
         android:layout_margin="20dp"
         android:text="goWeb"></Button>
 </LinearLayout>

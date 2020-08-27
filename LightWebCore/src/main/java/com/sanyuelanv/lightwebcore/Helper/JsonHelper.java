@@ -34,13 +34,16 @@ public class JsonHelper {
         }
         return res;
     }
-    public static String getNormalRes(String msg, int code){
-        if(code == 0){
-            if(msg == null) return "{data:null,state:0}";
-            else return "{data:'"+ msg +"',state:0}";
-        }
-        else {
-            return "{errorMsg:'"+ msg +"',state:-1}";
-        }
+    public static void setValueToJson(JSONObject json,String name,String value){
+        try {  json.put(name,value);  }
+        catch (JSONException ignored){}
+    }
+    public static void setValueToJson(JSONObject json,String name,int value){
+        try {  json.put(name,value);  }
+        catch (JSONException ignored){}
+    }
+    public static void setValueToJson(JSONObject json,String name,JSONObject value){
+        try {  json.put(name,value);  }
+        catch (JSONException ignored){}
     }
 }

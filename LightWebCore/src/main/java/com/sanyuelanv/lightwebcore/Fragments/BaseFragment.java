@@ -25,6 +25,8 @@ import com.sanyuelanv.lightwebcore.Model.Enum.BridgeEvents;
 import com.sanyuelanv.lightwebcore.Model.Enum.BridgeMethods;
 import com.sanyuelanv.lightwebcore.Model.Enum.FragmentLife;
 import com.sanyuelanv.lightwebcore.Model.Enum.FragmentStatus;
+import com.sanyuelanv.lightwebcore.Model.Enum.ThemeConfig;
+import com.sanyuelanv.lightwebcore.Model.Enum.ThemeTypes;
 import com.sanyuelanv.lightwebcore.Model.PageConfig;
 import com.sanyuelanv.lightwebcore.Model.RouterSystem;
 import com.sanyuelanv.lightwebcore.Model.Vibrator;
@@ -57,6 +59,15 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
     private String popExtra;
     private boolean isDev;
     private LightWebCoreActivity mActivity;
+    private ThemeTypes nowTheme;
+
+    public void  initData(int currentIndex, String urlName, String extra, boolean isDev, ThemeTypes nowTheme){
+        this.currentIndex = currentIndex;
+        this.urlName = urlName;
+        this.extra = extra;
+        this.isDev = isDev;
+        this.nowTheme = nowTheme;
+    }
 
     @Nullable
     @Override
@@ -115,13 +126,6 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
         }
     }
 
-    public void  initData(int currentIndex, String urlName,String extra,boolean isDev){
-        this.currentIndex = currentIndex;
-        this.urlName = urlName;
-        this.extra = extra;
-        this.isDev = isDev;
-    }
-
     // region  webView
     private void removeHTML(){
         if (mWebView != null){
@@ -143,7 +147,7 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
         else {  setError("missing index file");  }
 
     }
-    // endregion webView
+    // endregion
 
     // region helper
     private boolean checkFileExists(String name){
@@ -151,16 +155,16 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
         File htmlFile = new File(appFile,name + ".html");
         return htmlFile.exists();
     }
-    // endregion helper
+    // endregion
 
     // region GET/SET
     // life 去掌控路由动画事件  & show/hide 事件 js 推送
     public void setLife(FragmentLife life) {
         this.life = life;
         if(mWebView != null){
-            if (life == FragmentLife.willHide) mWebView.pub(BridgeEvents.hide,null);
+            if (life == FragmentLife.willHide) mWebView.pageHide();
             else if (life == FragmentLife.willShow){
-                mWebView.pub(BridgeEvents.show,extra);
+                mWebView.pageShow(extra);
                 extra = null;
                 // 状态栏调整
                 UIHelper.changeStatusBar(mActivity,mActivity.getWindow(), pageConfig.getStatusStyle());
@@ -180,7 +184,35 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
     public void setExtra(String extra) {
         this.extra = extra;
     }
-    // endregion GET/SET
+    public LightWebView getMWebView() {
+        return mWebView;
+    }
+    public void setNowTheme(ThemeTypes nowTheme) {
+        // auto 的时候，nowTheme 和上次不一样则需要 更新
+        if(mWebView != null){
+            // 系统切换模式
+            if (pageConfig.getTheme() == ThemeConfig.auto && getNowTheme() != nowTheme){
+                this.nowTheme = nowTheme;
+                mWebView.changStyle(getNowTheme(),false);
+                appInfo.setCurrentTheme(getNowTheme());
+            }
+            // 手动切换了模式
+            else if(pageConfig.getTheme() != ThemeConfig.auto &&  appInfo.getCurrentTheme() != getNowTheme()){
+                mWebView.changStyle(getNowTheme(),false);
+                appInfo.setCurrentTheme(getNowTheme());
+            }
+        }
+        this.nowTheme = nowTheme;
+    }
+    public ThemeTypes getNowTheme(){
+        ThemeTypes types = nowTheme;
+        if(pageConfig != null){
+            if(pageConfig.getTheme() == ThemeConfig.auto)  types = nowTheme;
+            else {  types = ThemeTypes.compare(pageConfig.getTheme());  }
+        }
+        return types;
+    }
+    // endregion
 
     // region customFunction
     // 自定义 view
@@ -212,14 +244,16 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
     protected void closeBtnEvent(){
         mActivity.finish();
     }
-    // endregion customFunction
+    // endregion
 
-    // CapsuleBtn.CapsuleBtnClickListener
+    // region  CapsuleBtn.CapsuleBtnClickListener
     @Override
     public void capsuleBtnClick(int viewID) {
         if (viewID == 0) aboutBtnEvent();
         else closeBtnEvent();
     }
+    // endregion
+
     // region JavaScriptHelper.onMessageListener
     @Override
     public void onMessage(final String name,final String id,final JSONObject jsonObject) {
@@ -229,12 +263,13 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
     }
     @Override
     public void lightWebInit(final String callBackID,final JSONObject jsonObject) {
-        // 生产 页面配置
+        //  页面配置
         pageConfig = new PageConfig(jsonObject);
         pageConfig.setNeedBack(currentIndex > 0);
         mWebView.openDebug();
         UIHelper.changeStatusBar(mActivity,mActivity.getWindow(), pageConfig.getStatusStyle());
         mWebView.setGlobalName(pageConfig.getGlobal());
+        mWebView.changStyle(getNowTheme(),true);
         // 创建 UI
         mainView.initApp(pageConfig, mWebView, new View.OnClickListener() {
             @Override
@@ -244,8 +279,9 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
         });
         // 构造回调参数
         appInfo.setHeight(mainView.getNavBarHeight());
+        appInfo.setCurrentTheme(getNowTheme());
         // 回调 js
-        mWebView.evaluateJsByID(callBackID,appInfo.toString(extra),"null","false");
+        mWebView.evaluateJs(callBackID,appInfo.getResult(extra),0,false);
         // 用完  extra 要清空
         extra = null;
     }
@@ -254,13 +290,14 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
         pageConfig.update(jsonObject);
         // 导航栏
         mainView.changeApp(pageConfig);
+        setNowTheme(getNowTheme());
         // 状态栏
         UIHelper.changeStatusBar(mActivity,mActivity.getWindow(), pageConfig.getStatusStyle());
         // 页面背景色
         mWebView.setBackgroundColor(Color.parseColor(pageConfig.getBackgroundColor()));
         appInfo.setHeight(mainView.getNavBarHeight());
         // 回调 js
-        mWebView.evaluateJsByID(callBackID,appInfo.toPageString(),"null","false");
+        mWebView.evaluateJs(callBackID,appInfo.getPageResult(),0,false);
     }
     @Override
     public void lightWebRouter(String callBackID, JSONObject jsonObject) {
@@ -273,8 +310,7 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
                     try {
                         boolean resFlag =  mActivity.pushRouter(routerSystem.getName(),routerSystem.getExtra());
                         if(resFlag){
-                            String res = JsonHelper.getNormalRes(null,0);
-                            mWebView.evaluateJsByID(callBackID,res,"null","false");
+                            mWebView.evaluateJs(callBackID,"",0,false);
                         }
                         else err = "max router limit";
                     }
@@ -319,9 +355,12 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
                 break;
             }
             case setPopExtra:{
-                setPopExtra(routerSystem.getExtra());
-                String res = JsonHelper.getNormalRes(null,0);
-                mWebView.evaluateJsByID(callBackID,res,"null","false");
+                if(currentIndex == 0){  err = "first page can not set popRouterExtra";  }
+                else {
+                    setPopExtra(routerSystem.getExtra());
+                    mWebView.evaluateJs(callBackID,"",0,false);
+                }
+
                 break;
             }
             case restart:{
@@ -330,36 +369,30 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
             }
         }
         if(err != null){
-            String res = JsonHelper.getNormalRes(err,-1);
-            mWebView.evaluateJsByID(callBackID,"null",res,"false");
+            mWebView.evaluateJs(callBackID,err,-1,false);
         }
     }
     @Override
     public void vibrate(String callBackID, JSONObject jsonObject) {
         Vibrator vibrator = new Vibrator(jsonObject);
-        String res;
         if(vibrator.vibrator(mActivity)){
-            res = JsonHelper.getNormalRes(null,0);
-            mWebView.evaluateJsByID(callBackID,res,"null","false");
+            mWebView.evaluateJs(callBackID,"",0,false);
         }
+        // 没有震动器
         else {
-            // 没有震动器
-            res = JsonHelper.getNormalRes("Vibrator missing",-1);
-            mWebView.evaluateJsByID(callBackID,"null",res,"false");
+            mWebView.evaluateJs(callBackID,"Vibrator missing",-1,false);
         }
     }
     @Override
     public void setClipboard(String callBackID, JSONObject jsonObject) {
         String content = JsonHelper.getStringInJson(jsonObject,"text","");
         AndroidHelper.setClipContent(mActivity,content);
-        String res = JsonHelper.getNormalRes(null,0);
-        mWebView.evaluateJsByID(callBackID,res,"null","false");
+        mWebView.evaluateJs(callBackID,"",0,false);
     }
     @Override
     public void getClipboard(String callBackID, JSONObject jsonObject) {
         String content =  AndroidHelper.getClipContent(mActivity);
-        String res = JsonHelper.getNormalRes(content,0);
-        mWebView.evaluateJsByID(callBackID,res,"null","false");
+        mWebView.evaluateJs(callBackID,content,0,false);
     }
-    // endregion JavaScriptHelper.onMessageListener
+    // endregion
 }

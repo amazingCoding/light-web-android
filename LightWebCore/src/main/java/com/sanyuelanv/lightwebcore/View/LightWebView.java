@@ -1,14 +1,21 @@
 package com.sanyuelanv.lightwebcore.View;
 
 import android.content.Context;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 
+import androidx.annotation.RequiresApi;
+import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewFeature;
+
 import com.sanyuelanv.lightwebcore.Helper.FileHelper;
 import com.sanyuelanv.lightwebcore.Helper.JavaScriptHelper;
 import com.sanyuelanv.lightwebcore.Helper.JsonHelper;
+import com.sanyuelanv.lightwebcore.Model.Enum.BridgeEvents;
+import com.sanyuelanv.lightwebcore.Model.Enum.ThemeTypes;
 
 import org.json.JSONObject;
 
@@ -43,7 +50,7 @@ public class LightWebView extends WebView {
         WebSettings webSettings = getSettings();
         // 内容布局
         webSettings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL); // 布局算法
-        webSettings.setUseWideViewPort(true); //将图片调整到适合webview的大小
+        webSettings.setUseWideViewPort(true); //将图片调整到适合webView的大小
         webSettings.setLoadWithOverviewMode(true); // 缩放至屏幕的大小
         // 文件缓存
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
@@ -67,6 +74,9 @@ public class LightWebView extends WebView {
         setFocusable(true);
         setFocusableInTouchMode(true);
 
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+            WebSettingsCompat.setForceDarkStrategy(webSettings, WebSettingsCompat.DARK_STRATEGY_WEB_THEME_DARKENING_ONLY);
+        }
     }
 
     public void loadUrl(String url,JavaScriptHelper.onMessageListener listener,Boolean debug) {
@@ -81,22 +91,74 @@ public class LightWebView extends WebView {
             debugJs = null;
         }
     }
-
-    public void evaluateJsByID(String id, JSONObject success,JSONObject error,boolean notRemoveLister){
-        String flag = notRemoveLister ? "true" : "false";
-        String successStr = success == null ? "null" : success.toString();
-        String errorStr = error == null ? "null" : error.toString();
-        evaluateJsByID(id,successStr,errorStr,flag);
+    public void showDebug(){
+        String js = "try {  vConsole.show()  } catch (err){}";
+        evaluateJavascript(js,null);
     }
 
+    // pus event
+    public void pageShow(String extra){
+        pub(BridgeEvents.show,extra);
+    }
+    public void pageHide(){
+        pub(BridgeEvents.hide,null);
+    }
+    public void appActive(){
+        pub(BridgeEvents.backGround,null);
+    }
+    public void appBackGround(){
+        pub(BridgeEvents.backGround,null);
+    }
+    public void changStyle(ThemeTypes types,boolean isInit){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q){
+            int theme = 0;
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                if(types==ThemeTypes.light){
+                    WebSettingsCompat.setForceDark(getSettings(),WebSettingsCompat.FORCE_DARK_OFF);
+                    theme = 0;
+                }
+                else {
+                    WebSettingsCompat.setForceDark(getSettings(),WebSettingsCompat.FORCE_DARK_ON);
+                    theme = 1;
+                }
+            }
+            if(!isInit){
+                String res = "{ \"theme\":"+ theme  +" }";
+                pub(BridgeEvents.sceneMode,res);
+                String js = "window['"+ globalName +"'].currentTheme = " + theme;
+                evaluateJavascript(js,null);
+                //this.appView.webContents.executeJavaScript(``)
+            }
+        }
+    }
+
+    public void evaluateJs(String id, JSONObject data,int code,boolean notRemoveLister){
+        String flag = notRemoveLister ? "true" : "false";
+        JSONObject res = new JSONObject();
+        JsonHelper.setValueToJson(res,"data",data);
+        JsonHelper.setValueToJson(res,"code",code);
+        if(code == 0){  evaluateJsByID(id,res.toString(),"null",flag);  }
+        else {  evaluateJsByID(id,"null",res.toString(),flag);  }
+    }
+    public void evaluateJs(String id, String data,int code,boolean notRemoveLister){
+        String flag = notRemoveLister ? "true" : "false";
+        JSONObject res = new JSONObject();
+        JsonHelper.setValueToJson(res,"data",data.isEmpty() ? null : data);
+        JsonHelper.setValueToJson(res,"code",code);
+        if(code == 0){  evaluateJsByID(id,res.toString(),"null",flag);  }
+        else {  evaluateJsByID(id,"null",res.toString(),flag);  }
+    }
     public void evaluateJsByID(String id, String success,String error,String flag){
         String str = "window["+ globalName +"].exec("+id+","+ success +","+ error +","+ flag +")";
         Log.d("Javascript",str);
         evaluateJavascript(str,null);
     }
-    public void pub(String name, String res){
-        String myRes = JsonHelper.getNormalRes(res,0);
-        String str = "window["+ globalName +"].pub('"+ name +"',"+ myRes +")";
+    public void pub(String name, String data){
+        JSONObject res = new JSONObject();
+        JsonHelper.setValueToJson(res,"data",data);
+        JsonHelper.setValueToJson(res,"state",0);
+
+        String str = "window["+ globalName +"].pub('"+ name +"',"+ res.toString() +")";
         Log.d("Javascript",str);
         evaluateJavascript(str,null);
     }

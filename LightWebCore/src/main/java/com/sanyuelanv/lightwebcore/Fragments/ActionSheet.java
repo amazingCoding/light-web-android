@@ -1,37 +1,33 @@
 package com.sanyuelanv.lightwebcore.Fragments;
-
-import android.animation.ArgbEvaluator;
-import android.animation.ObjectAnimator;
-import android.animation.ValueAnimator;
-import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
-import android.view.WindowInsets;
 import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
 
 import com.sanyuelanv.lightwebcore.Helper.UIHelper;
 import com.sanyuelanv.lightwebcore.LightWebCoreActivity;
 import com.sanyuelanv.lightwebcore.Model.Enum.ThemeConfig;
 import com.sanyuelanv.lightwebcore.Model.Enum.ThemeTypes;
-import com.sanyuelanv.lightwebcore.R;
 import com.sanyuelanv.lightwebcore.View.ActionSheetView;
 
 /**
  * Create By songhang in 8/26/20
  */
-public class ActionSheet extends Fragment {
+public class ActionSheet extends Fragment implements Animation.AnimationListener {
     private LightWebCoreActivity mActivity;
     private ActionSheetView actionSheetView;
+    private  static String ID  = "lightWeb_actionSheet";
+
+    private boolean isDev;
+    private ThemeTypes nowTheme;
+    private ThemeConfig theme;
+    protected ActionSheetView.OnControlBtnListener listener;
 
     @Nullable
     @Override
@@ -40,24 +36,46 @@ public class ActionSheet extends Fragment {
         assert activity != null;
         mActivity = activity;
         UIHelper.initStatusBar(mActivity,mActivity.getWindow());
-        actionSheetView = new ActionSheetView(mActivity,true,  ThemeTypes.light,ThemeConfig.auto);
-        // 下至上的动画
-        // 背景色渐现
-        ValueAnimator animator = ObjectAnimator.ofInt(actionSheetView, "backgroundColor", 0x000f0000, 0x8C000000);
-        animator.setDuration(500);
-        animator.setEvaluator(new ArgbEvaluator());
-        animator.start();
+        actionSheetView = new ActionSheetView(mActivity,isDev, nowTheme,theme);
+        if(listener != null)actionSheetView.setListener(listener);
         return actionSheetView;
     }
 
-//    @Nullable
-//    @Override
-//    public Animation onCreateAnimation(int transit, boolean enter, int nextAnim) {
-//        if(enter){
-//            return AnimationUtils.loadAnimation(mActivity, R.anim.light_web_anim_show);
-//        }
-//        else {
-//            return AnimationUtils.loadAnimation(mActivity, R.anim.light_web_anim_hide);
-//        }
-//    }
+    public ActionSheet(boolean isDev, ThemeTypes nowTheme, ThemeConfig theme) {
+        this.isDev = isDev;
+        this.nowTheme = nowTheme;
+        this.theme = theme;
+    }
+    public void changeStyle(ThemeTypes nowTheme){
+        this.nowTheme = nowTheme;
+        actionSheetView.changStyle(nowTheme);
+    }
+    public void hide(){
+        this.actionSheetView.hideView(this);
+    }
+
+    public static String getID() {
+        return ID;
+    }
+
+    public void setListener(ActionSheetView.OnControlBtnListener listener) {
+        this.listener = listener;
+    }
+
+    @Override
+    public void onAnimationStart(Animation animation) {
+
+    }
+
+    @Override
+    public void onAnimationEnd(Animation animation) {
+        FragmentManager manager =   mActivity.getSupportFragmentManager();
+        manager.popBackStackImmediate(ID,1);
+        mActivity.setActionSheet(null);
+    }
+
+    @Override
+    public void onAnimationRepeat(Animation animation) {
+
+    }
 }

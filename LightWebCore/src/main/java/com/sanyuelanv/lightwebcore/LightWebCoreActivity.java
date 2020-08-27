@@ -1,41 +1,41 @@
 package com.sanyuelanv.lightwebcore;
 
 import androidx.annotation.NonNull;
+import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
-import androidx.lifecycle.LifecycleObserver;
 
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 
 import com.sanyuelanv.lightwebcore.Fragments.ActionSheet;
-import com.sanyuelanv.lightwebcore.Fragments.MyActionSheet;
 import com.sanyuelanv.lightwebcore.Fragments.BaseFragment;
 import com.sanyuelanv.lightwebcore.Helper.AndroidBug5497Workaround;
 import com.sanyuelanv.lightwebcore.Helper.DownLoadHelper;
 import com.sanyuelanv.lightwebcore.Model.Enum.FragmentLife;
 import com.sanyuelanv.lightwebcore.Model.Enum.ThemeConfig;
 import com.sanyuelanv.lightwebcore.Model.Enum.ThemeTypes;
+import com.sanyuelanv.lightwebcore.View.ActionSheetView;
 
 import java.io.File;
 
-public class LightWebCoreActivity extends FragmentActivity implements  DownLoadHelper.OnDownloadListener, LifecycleObserver {
+public class LightWebCoreActivity extends FragmentActivity implements  DownLoadHelper.OnDownloadListener, ActionSheetView.OnControlBtnListener {
     private  int maxRouter;
     private boolean isReady = false;
     private boolean isDev;
     private DownLoadHelper manager;
     private String downLoadURL;
     private Class fragmentClass = BaseFragment.class;
-    private int currentNightMode;
     private int lifeCode = 0;
     private ActionSheet actionSheet;
+    private ThemeTypes nowTheme;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,13 +47,15 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
         downLoadURL = intent.getStringExtra("url");
         maxRouter = intent.getIntExtra("maxRouter",3);
         isDev = intent.getBooleanExtra("isDev",false);
-        currentNightMode = this.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        int currentNightMode = this.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        nowTheme = currentNightMode == Configuration.UI_MODE_NIGHT_NO ? ThemeTypes.light : ThemeTypes.dark;
         // init
         initData();
     }
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
-        currentNightMode = newConfig.uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        int currentNightMode = newConfig.uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        setNowTheme(currentNightMode);
         super.onConfigurationChanged(newConfig);
     }
     @Override
@@ -70,12 +72,8 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
             finish();
         }
         else {
-            if(actionSheet != null){
-                manager.popBackStackImmediate("lightWeb_actionSheet",1);
-                actionSheet = null;
-                return;
-            }
-            popRouter(size - 2,null);
+            if(actionSheet != null) actionSheet.hide();
+            else  popRouter(size - 2,null);
         }
     }
     @Override
@@ -87,17 +85,18 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
     protected void onStart() {
         super.onStart();
         if(lifeCode == 1){
-            Log.d("MyLife","onStart");
+            BaseFragment fragment = getCurrentPage();
+            if(fragment.getMWebView() != null)fragment.getMWebView().appActive();
             lifeCode = 0;
         }
-
     }
     @Override
     protected void onStop() {
         super.onStop();
         if(lifeCode >= 0){
+            BaseFragment fragment = getCurrentPage();
+            if(fragment.getMWebView() != null)fragment.getMWebView().appBackGround();
             lifeCode = 1;
-            Log.d("MyLife","onStop");
         }
 
     }
@@ -112,7 +111,7 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
             }
             pushRouter("index",null);
         }
-        catch (Exception e){}
+        catch (Exception ignored){}
         // load zip - unzip - make fragment show app
         if(manager == null){
             manager = new DownLoadHelper(downLoadURL,this);
@@ -124,13 +123,23 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
         }
 
     }
+    public static void createLightWebView(Activity activity, String url, int maxRouter,boolean isDev){
+        Context myContext = activity.getBaseContext();
+        Intent intent = new Intent(myContext , LightWebCoreActivity.class);
+        intent.putExtra("url",url);
+        intent.putExtra("maxRouter",maxRouter);
+        intent.putExtra("isDev",isDev);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        activity.startActivityForResult(intent,200);
+        activity.overridePendingTransition(R.anim.light_web_anim_show,R.anim.light_web_anim_show_out);
+    }
     private BaseFragment createNewFragment(int index, String name,String extra) throws InstantiationException, IllegalAccessException {
         BaseFragment baseFragment = (BaseFragment) fragmentClass.newInstance();
-        baseFragment.initData(index,name,extra,isDev);
+        baseFragment.initData(index,name,extra,isDev,nowTheme);
         return baseFragment;
     }
 
-    // DownLoadHelper.OnDownloadListener 下载相关
+    // region DownLoadHelper.OnDownloadListener 下载相关
     @Override
     public void onDownloadSuccess(final File file) {
         Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -166,9 +175,11 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
         isReady = false;
         initData();
     }
+    // endregion
 
-    // 路由相关
+    // region 路由相关
     public boolean pushRouter(String name,String extra) throws IllegalAccessException, InstantiationException {
+        if(actionSheet != null) actionSheet.hide();
         FragmentManager manager =  this.getSupportFragmentManager();
         int index = manager.getBackStackEntryCount();
         if(index > maxRouter - 1) return false;
@@ -190,6 +201,7 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
         return  true;
     }
     public void popRouter(int index,String extra){
+        if(actionSheet != null) actionSheet.hide();
         FragmentManager manager = this.getSupportFragmentManager();
         // 栈内，最后一个 will dead ,中间直接 dead ，目标 fragment willShow
         int lastIndex = manager.getFragments().size() - 1;
@@ -213,6 +225,7 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
         manager.popBackStackImmediate("ID_" + index,0);
     }
     public void replaceRouter(int index,String name,String extra) throws IllegalAccessException, InstantiationException {
+        if(actionSheet != null) actionSheet.hide();
         // 清空 >= index 的，再加入一个新的 init
         FragmentManager manager = this.getSupportFragmentManager();
         int lastIndex = manager.getFragments().size() - 1;
@@ -236,8 +249,9 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
         transaction.addToBackStack(ID);
         transaction.commitAllowingStateLoss();
     }
+    // endregion
 
-    // get
+    // region get/set
     public int getMaxRouter() {
         return maxRouter;
     }
@@ -247,41 +261,66 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
     public boolean isReady() {
         return isReady;
     }
+    public BaseFragment getCurrentPage(){
+        FragmentManager manager = this.getSupportFragmentManager();
+        int lastIndex = manager.getFragments().size() - 1;
+        if(actionSheet != null) lastIndex = manager.getFragments().size() - 2;
+        BaseFragment fragment = (BaseFragment)manager.getFragments().get(lastIndex);
+        return  fragment;
+    }
+    public void setActionSheet(ActionSheet actionSheet) {
+        this.actionSheet = actionSheet;
+    }
 
-    // open about
+    public void setNowTheme(int currentNightMode) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q){
+            ThemeTypes theme = currentNightMode == Configuration.UI_MODE_NIGHT_NO ? ThemeTypes.light : ThemeTypes.dark;
+            if(theme != nowTheme){
+                nowTheme = theme;
+                FragmentManager manager = this.getSupportFragmentManager();
+                for (int i = 0;i<manager.getFragments().size();i++){
+                    Fragment fragment = manager.getFragments().get(i);
+                    if (fragment instanceof ActionSheet){
+                        ActionSheet actionSheet = (ActionSheet)fragment;
+                        actionSheet.changeStyle(nowTheme);
+                    }
+                    else if (fragment instanceof BaseFragment){
+                        BaseFragment baseFragment = (BaseFragment)fragment;
+                        baseFragment.setNowTheme(nowTheme);
+                    }
+                }
+            }
+        }
+    }
+    // endregion
+
+    // region ActionSheetView.OnControlBtnListener
     public void openAbout(){
-        actionSheet = new ActionSheet();
-        String ID = "lightWeb_actionSheet";
-        FragmentManager manager =  this.getSupportFragmentManager();
+        actionSheet = new ActionSheet(isDev,nowTheme,ThemeConfig.auto);
+        actionSheet.setListener(this);
         FragmentTransaction transaction = this.getSupportFragmentManager().beginTransaction();
-        transaction.add(R.id.light_web_core_main, actionSheet,ID);
-        transaction.addToBackStack(ID);
+        transaction.add(R.id.light_web_core_main, actionSheet,ActionSheet.getID());
+        transaction.addToBackStack(ActionSheet.getID());
         transaction.commitAllowingStateLoss();
-//        MyActionSheet myActionSheet = new MyActionSheet(isDev, ThemeConfig.auto, ThemeTypes.light);
-//        myActionSheet.setListener(new MyActionSheet.OnControlBtnListener() {
-//            @Override
-//            public void changeDevItem() {
-//
-//            }
-//
-//            @Override
-//            public void reloadItem() {
-//
-//            }
-//        });
-//        myActionSheet.show(getSupportFragmentManager(),"lightWeb_actionSheet");
     }
-
-
-    // 静态方法——创建页面
-    public static void createLightWebView(Activity activity, String url, int maxRouter,boolean isDev){
-        Context myContext = activity.getBaseContext();
-        Intent intent = new Intent(myContext , LightWebCoreActivity.class);
-        intent.putExtra("url",url);
-        intent.putExtra("maxRouter",maxRouter);
-        intent.putExtra("isDev",isDev);
-        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        activity.startActivityForResult(intent,200);
-        activity.overridePendingTransition(R.anim.light_web_anim_show,R.anim.light_web_anim_show_out);
+    @Override
+    public void changeDevItem() {
+        // 找出当前 fragment ,执行 JS
+        FragmentManager manager = this.getSupportFragmentManager();
+        // current fragment
+        int lastIndex = manager.getFragments().size() - 2;
+        BaseFragment fragment = (BaseFragment)manager.getFragments().get(lastIndex);
+        fragment.getMWebView().showDebug();
+        actionSheet.hide();
     }
+    @Override
+    public void reloadItem() {
+        reDownLoad();
+        actionSheet.hide();
+    }
+    @Override
+    public void closeItem() {
+        actionSheet.hide();
+    }
+    // endregion
 }
