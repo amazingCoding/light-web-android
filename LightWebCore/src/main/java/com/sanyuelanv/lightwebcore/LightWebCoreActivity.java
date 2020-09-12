@@ -79,6 +79,7 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
     @Override
     protected void onDestroy() {
         manager.cancelDownLoad();
+        manager = null;
         super.onDestroy();
     }
     @Override
@@ -135,13 +136,14 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
     }
     private BaseFragment createNewFragment(int index, String name,String extra) throws InstantiationException, IllegalAccessException {
         BaseFragment baseFragment = (BaseFragment) fragmentClass.newInstance();
-        baseFragment.initData(index,name,extra,isDev,nowTheme);
+        baseFragment.initData(index,name,extra,isDev);
         return baseFragment;
     }
 
     // region DownLoadHelper.OnDownloadListener 下载相关
     @Override
     public void onDownloadSuccess(final File file) {
+        if(this == null) return;
         Handler mainHandler = new Handler(Looper.getMainLooper());
         final LightWebCoreActivity that = this;
         mainHandler.post(new Runnable() {
@@ -160,6 +162,7 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
     }
     @Override
     public void onDownloadFailed(final Exception e) {
+        if(this == null) return;
         Handler mainHandler = new Handler(Looper.getMainLooper());
         final LightWebCoreActivity that = this;
         mainHandler.post(new Runnable() {
@@ -286,11 +289,15 @@ public class LightWebCoreActivity extends FragmentActivity implements  DownLoadH
                     }
                     else if (fragment instanceof BaseFragment){
                         BaseFragment baseFragment = (BaseFragment)fragment;
-                        baseFragment.setNowTheme(nowTheme);
+                        baseFragment.setNowTheme(false);
                     }
                 }
             }
         }
+    }
+
+    public ThemeTypes getNowTheme() {
+        return nowTheme;
     }
     // endregion
 

@@ -49,6 +49,7 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
     private int currentIndex;
     private  String urlName;
     private  String extra;
+    private  String initExtra;
 
     private FragmentLife life = FragmentLife.willInit;
     private  MainView mainView;
@@ -59,14 +60,12 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
     private String popExtra;
     private boolean isDev;
     private LightWebCoreActivity mActivity;
-    private ThemeTypes nowTheme;
 
-    public void  initData(int currentIndex, String urlName, String extra, boolean isDev, ThemeTypes nowTheme){
+    public void  initData(int currentIndex, String urlName, String extra, boolean isDev){
         this.currentIndex = currentIndex;
         this.urlName = urlName;
-        this.extra = extra;
+        this.initExtra = extra;
         this.isDev = isDev;
-        this.nowTheme = nowTheme;
     }
 
     @Nullable
@@ -144,7 +143,7 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
             String url =  "file://" + mActivity.getManager().getAppFileDir().getAbsolutePath() + "/" + urlName + ".html";
             mWebView.loadUrl(url,this,isDev);
         }
-        else {  setError("missing index file");  }
+        else {  setError("missing "+ urlName +" file");  }
 
     }
     // endregion
@@ -187,30 +186,21 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
     public LightWebView getMWebView() {
         return mWebView;
     }
-    public void setNowTheme(ThemeTypes nowTheme) {
-        // auto 的时候，nowTheme 和上次不一样则需要 更新
-        if(mWebView != null){
+    public void setNowTheme(boolean isInit) {
+        if(mWebView != null && pageConfig != null){
             // 系统切换模式
-            if (pageConfig.getTheme() == ThemeConfig.auto && getNowTheme() != nowTheme){
-                this.nowTheme = nowTheme;
-                mWebView.changStyle(getNowTheme(),false);
-                appInfo.setCurrentTheme(getNowTheme());
+            if (pageConfig.getTheme() == ThemeConfig.auto){
+                mWebView.changStyle(mActivity.getNowTheme(),isInit);
+                appInfo.setCurrentTheme(mActivity.getNowTheme());
             }
             // 手动切换了模式
-            else if(pageConfig.getTheme() != ThemeConfig.auto &&  appInfo.getCurrentTheme() != getNowTheme()){
-                mWebView.changStyle(getNowTheme(),false);
-                appInfo.setCurrentTheme(getNowTheme());
+            else if(pageConfig.getTheme() != ThemeConfig.auto){
+                ThemeTypes types = ThemeTypes.compare(pageConfig.getTheme());
+                mWebView.changStyle(types,isInit);
+                appInfo.setCurrentTheme(types);
             }
         }
-        this.nowTheme = nowTheme;
-    }
-    public ThemeTypes getNowTheme(){
-        ThemeTypes types = nowTheme;
-        if(pageConfig != null){
-            if(pageConfig.getTheme() == ThemeConfig.auto)  types = nowTheme;
-            else {  types = ThemeTypes.compare(pageConfig.getTheme());  }
-        }
-        return types;
+
     }
     // endregion
 
@@ -269,7 +259,7 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
         mWebView.openDebug();
         UIHelper.changeStatusBar(mActivity,mActivity.getWindow(), pageConfig.getStatusStyle());
         mWebView.setGlobalName(pageConfig.getGlobal());
-        mWebView.changStyle(getNowTheme(),true);
+        mWebView.changStyle(mActivity.getNowTheme(),true);
         // 创建 UI
         mainView.initApp(pageConfig, mWebView, new View.OnClickListener() {
             @Override
@@ -277,20 +267,20 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
                 mActivity.popRouter(currentIndex - 1,null);
             }
         });
+        // 主题
+        setNowTheme(true);
         // 构造回调参数
         appInfo.setHeight(mainView.getNavBarHeight());
-        appInfo.setCurrentTheme(getNowTheme());
         // 回调 js
-        mWebView.evaluateJs(callBackID,appInfo.getResult(extra),0,false);
-        // 用完  extra 要清空
-        extra = null;
+        mWebView.evaluateJs(callBackID,appInfo.getResult(initExtra),0,false);
     }
     @Override
     public void lightWebPageConfig(String callBackID, JSONObject jsonObject) {
         pageConfig.update(jsonObject);
         // 导航栏
         mainView.changeApp(pageConfig);
-        setNowTheme(getNowTheme());
+        // 主题
+        setNowTheme(false);
         // 状态栏
         UIHelper.changeStatusBar(mActivity,mActivity.getWindow(), pageConfig.getStatusStyle());
         // 页面背景色
@@ -316,7 +306,7 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
                     }
                     catch (IllegalAccessException | java.lang.InstantiationException e) { err = e.getMessage(); }
                 }
-                else {  err = "missing file"; }
+                else {  err = "missing "+ routerSystem.getName() +" file"; }
                 break;
             }
             case pop:{
@@ -339,7 +329,7 @@ public class BaseFragment extends Fragment implements CapsuleBtn.CapsuleBtnClick
                 // 不设置的时候，相当于 当前 page pos
                 if (checkFileExists(routerSystem.getName())){
                     if(routerSystem.getPos() > -1 && routerSystem.getPos() >= currentIndex){
-                        err = "it is error pos to replace";
+                        err = "it is an error pos to replace";
                     }
                     else {
                         int pos = currentIndex;

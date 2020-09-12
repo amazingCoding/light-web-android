@@ -13,15 +13,6 @@ import org.json.JSONObject;
  * Create By songhang in 2020/8/20
  */
 public class AppInfo {
-//    phoneName: 'electron',
-//    system: 'electronOS',
-//    systemVersion: '0.1',
-//    screenWidth: app.rect.width,
-//    screenHeight: app.rect.height,
-//    webWidth: app.rect.width,
-//    webHeight: appRect.height,
-//    statusBarHeight: 20,
-//    capsule: { width: 65, height: 28, x: app.rect.width - 12 - 65, y: 28 },
     private String phoneName;
     private String system;
     private String systemVersion;

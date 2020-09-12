@@ -20,7 +20,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.goWeb).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                LightWebCoreActivity.createLightWebView(activity,"http://172.16.31.141:3000/app.zip?fdsfdsfds",5,btn.isChecked());
+                LightWebCoreActivity.createLightWebView(activity,"http://192.168.50.222:3000/app.zip?fdsfdsfds",5,btn.isChecked());
             }
         });
     }

@@ -127,7 +127,6 @@ public class LightWebView extends WebView {
                 pub(BridgeEvents.sceneMode,res);
                 String js = "window['"+ globalName +"'].currentTheme = " + theme;
                 evaluateJavascript(js,null);
-                //this.appView.webContents.executeJavaScript(``)
             }
         }
     }
@@ -143,10 +142,16 @@ public class LightWebView extends WebView {
     public void evaluateJs(String id, String data,int code,boolean notRemoveLister){
         String flag = notRemoveLister ? "true" : "false";
         JSONObject res = new JSONObject();
-        JsonHelper.setValueToJson(res,"data",data.isEmpty() ? null : data);
+        
         JsonHelper.setValueToJson(res,"code",code);
-        if(code == 0){  evaluateJsByID(id,res.toString(),"null",flag);  }
-        else {  evaluateJsByID(id,"null",res.toString(),flag);  }
+        if(code == 0){  
+            JsonHelper.setValueToJson(res,"data",data.isEmpty() ? null : data);
+            evaluateJsByID(id,res.toString(),"null",flag);  
+        }
+        else {  
+            JsonHelper.setValueToJson(res,"errorMsg",data.isEmpty() ? null : data);
+            evaluateJsByID(id,"null",res.toString(),flag);  
+        }
     }
     public void evaluateJsByID(String id, String success,String error,String flag){
         String str = "window["+ globalName +"].exec("+id+","+ success +","+ error +","+ flag +")";

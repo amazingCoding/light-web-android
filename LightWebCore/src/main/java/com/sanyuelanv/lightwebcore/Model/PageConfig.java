@@ -31,7 +31,7 @@ public class PageConfig {
         navBackgroundColor = JsonHelper.getStringInJson(json,"navBackgroundColor","#FFFFFF");
         backgroundColor = JsonHelper.getStringInJson(json,"backgroundColor","#F1F1F1");
         global = JsonHelper.getStringInJson(json,"global","");
-        isBounces = JsonHelper.IntToBoolean(JsonHelper.getIntInJson(json,"isBounces",1));
+        isBounces = JsonHelper.IntToBoolean(JsonHelper.getIntInJson(json,"bounces",1));
         showCapsule = JsonHelper.IntToBoolean(JsonHelper.getIntInJson(json,"showCapsule",1));
     }
     public void update(JSONObject json){
@@ -42,7 +42,7 @@ public class PageConfig {
         if(json.has("titleColor"))titleColor = JsonHelper.getStringInJson(json,"titleColor","#000000");
         if(json.has("navBackgroundColor"))navBackgroundColor = JsonHelper.getStringInJson(json,"navBackgroundColor","#FFFFFF");
         if(json.has("backgroundColor"))backgroundColor = JsonHelper.getStringInJson(json,"backgroundColor","#F1F1F1");
-        if(json.has("isBounces"))isBounces = JsonHelper.IntToBoolean(JsonHelper.getIntInJson(json,"isBounces",1));
+        if(json.has("bounces"))isBounces = JsonHelper.IntToBoolean(JsonHelper.getIntInJson(json,"bounces",1));
         if(json.has("showCapsule")) showCapsule = JsonHelper.IntToBoolean(JsonHelper.getIntInJson(json,"showCapsule",1));
     }
 
